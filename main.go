@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/notnil/chess"
 	"log"
 	"math/rand"
 	"time"
@@ -10,12 +11,10 @@ import (
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/theme"
-
-	"github.com/notnil/chess"
 )
 
 func main() {
-	a := app.NewWithID("xyz.andy.chess")
+	a := app.NewWithID("dartmoor.chess")
 	win := a.NewWindow("Chess")
 
 	game := chess.NewGame()

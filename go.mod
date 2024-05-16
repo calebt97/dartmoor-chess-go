@@ -1,4 +1,4 @@
-module github.com/andydotxyz/chess
+module main
 
 go 1.15
 

@@ -1,10 +1,7 @@
 package main
 
 import (
-	"log"
-
 	"fyne.io/fyne/v2"
-
 	"github.com/notnil/chess"
 )
 
@@ -26,19 +23,21 @@ func loadGameFromPreference(game *chess.Game, p fyne.Preferences) {
 	if cur == "" {
 		return
 	}
+	chess.NewGame()
 
-	load, err := chess.FEN(cur)
-	if err != nil {
-		log.Println("Failed to load game", err)
-		return
-	}
-	load(game)
+	//This loads the game from the end of the last game
+	//load, err := chess.FEN(cur)
+	//if err != nil {
+	//	log.Println("Failed to load game", err)
+	//	return
+	//}
+	//load(game)
 }
 
 func positionToSquare(pos fyne.Position, gridSize fyne.Size) chess.Square {
 	var offX, offY = -1, -1
 	cellEdge := cellSize(gridSize)
-	for x := (gridSize.Width - cellEdge*8)/2; x <= pos.X; x += cellEdge {
+	for x := (gridSize.Width - cellEdge*8) / 2; x <= pos.X; x += cellEdge {
 		offX++
 	}
 	for y := float32(0); y <= pos.Y; y += cellEdge {

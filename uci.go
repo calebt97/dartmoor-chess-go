@@ -1,13 +1,11 @@
 package main
 
 import (
-	"math/rand"
-	"os/exec"
-	"time"
-
 	"fyne.io/fyne/v2"
 	"github.com/notnil/chess"
 	"github.com/notnil/chess/uci"
+	"main/black"
+	"os/exec"
 )
 
 func loadOpponent() *uci.Engine {
@@ -28,33 +26,11 @@ func loadOpponent() *uci.Engine {
 
 func playResponse(u *ui) {
 	var m *chess.Move
-	if u.eng != nil {
-		cmdPos := uci.CmdPosition{Position: u.game.Position()}
-		cmdGo := uci.CmdGo{MoveTime: time.Millisecond}
-		if err := u.eng.Run(cmdPos, cmdGo); err != nil {
-			panic(err)
-		}
-
-		m = u.eng.SearchResults().BestMove
-	} else {
-		m = randomResponse(u.game)
-	}
-	if m == nil {
-		return // somehow end of game and we didn't notice?
-	}
+	m = black.FindMove(u.game)
 
 	off := squareToOffset(m.S1())
 	cell := u.grid.objects[off].(*fyne.Container)
 
 	u.over.Move(cell.Position())
 	move(m, u.game, false, u)
-}
-
-func randomResponse(game *chess.Game) *chess.Move {
-	valid := game.ValidMoves()
-	if len(valid) == 0 {
-		return nil
-	}
-
-	return valid[rand.Intn(len(valid))]
 }
