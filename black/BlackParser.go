@@ -17,103 +17,17 @@ import (
 //	return valid[rand.Intn(len(valid))]
 //}
 
-// def minimax(self, depth, board: chess.Board, maximizing_player,
-// alpha, beta):
-//
-// MAX, MIN = 1000, -1000
-// white_check_mate, black_checkmate = 1000, -1000
-//
-// if board.is_checkmate() and board.turn == chess.WHITE:
-// # Bias for checkmates that are fewer turns away
-// return black_checkmate + (depth * 2)
-//
-// if board.is_checkmate() and board.turn == chess.BLACK:
-// # Bias for checkmates that are fewer turns away
-// return white_check_mate - (depth * 2)
-//
-// if board.is_fivefold_repetition():
-// return 0
-//
-// legal_moves = board.legal_moves
-//
-// # Terminating condition. i.e
-// # leaf node is reached
-// if depth >= self.standard_depth:
-//
-// if self.previous_evals.get(board.fen()) is not None:
-// return self.previous_evals[board.fen()]
-//
-// eval = self.board_model.eval_board(board)
-//
-// self.previous_evals[board.fen()] = eval
-//
-// return eval
-//
-// if maximizing_player:
-//
-// best = MIN
-//
-// for move in legal_moves:
-// val = 0
-// board_copy = board.copy()
-//
-// q_search = self.needs_q_search(move, board_copy)
-//
-// board_copy.push(move)
-//
-// if q_search:
-// val = self.qSearch(depth + 1, board_copy, False, alpha, beta)
-//
-// else:
-// val = self.minimax(depth + 1, board_copy,
-// False, alpha, beta)
-//
-// best = max(best, val)
-// alpha = max(alpha, best)
-//
-// # Alpha Beta Pruning
-// if beta <= alpha:
-// break
-//
-// return best
-//
-// else:
-// best = MAX
-//
-// for move in legal_moves:
-// val = 0
-// board_copy = board.copy()
-//
-// q_search = self.needs_q_search(move, board_copy)
-//
-// board_copy.push(move)
-//
-// if q_search:
-// val = self.qSearch(depth + 1, board_copy, True, alpha, beta)
-//
-// else:
-// val = self.minimax(depth + 1, board_copy,
-// True, alpha, beta)
-// best = min(best, val)
-// beta = min(beta, best)
-//
-// # Alpha Beta Pruning
-// if beta <= alpha:
-// break
-//
-// return best
-var SeenPositions = make(map[string]float32)
-var NumPositions = 0
-
 const (
 	BlackCheckmate = -1000
 	WhiteCheckmate = 1000
 	MinEval        = -10000
 	MaxEval        = 10000
-	MaxDepth       = 3
+	MaxDepth       = 4
 	StartingAlpha  = -10000
 	StartingBeta   = 10000
 )
+
+var SeenPositions = make(map[[16]byte]float32)
 
 func FindMove(game *chess.Game) *chess.Move {
 	var bestMove *chess.Move
@@ -122,67 +36,76 @@ func FindMove(game *chess.Game) *chess.Move {
 	turn := game.Position().Turn()
 	playerColor := turn == chess.White
 
-	validMoves := game.ValidMoves()
+	validMoves := getBestMoves(game, 20)
 
 	for _, move := range validMoves {
 		next := game.Clone()
 
 		if err := next.Move(move); err != nil {
-			panic(err)
+			continue
 		}
 
 		potential := minMax(0, StartingAlpha, StartingBeta, next, playerColor)
 
 		if bestEval == nil || (potential < *bestEval && turn == chess.Black) {
+			//bestGame = next
 			bestEval = &potential
 			bestMove = move
 		}
 
 		if bestEval == nil || (potential > *bestEval && turn == chess.White) {
+			//bestGame = next
 			bestEval = &potential
 			bestMove = move
 		}
 	}
 	log.Println("Best Move " + bestMove.String())
-	log.Print("Num positions saved" + NumPositions)
-	log.Print(*bestEval)
+	log.Println(*bestEval)
 
 	return bestMove
 
 }
 
-func minMax(depth int, alpha float32, beta float32, game *chess.Game, maximizingPlayer bool) float32 {
+func minMax(depth int, alpha float32, beta float32, game *chess.Game, maximizingPlayer bool, qValue int) float32 {
 	position := game.Position()
 
-	if position.Turn() == chess.Black && position.Status() == chess.Checkmate {
+	if position.Turn() == chess.White && position.Status() == chess.Checkmate {
 		return BlackCheckmate + float32(depth*2)
 	}
 
-	if position.Turn() == chess.White && position.Status() == chess.Checkmate {
+	if position.Turn() == chess.Black && position.Status() == chess.Checkmate {
 		return WhiteCheckmate - float32(depth*2)
 	}
-	if depth == MaxDepth {
 
-		if value, exists := SeenPositions[game.FEN()]; exists {
-			NumPositions++
+	if depth >= MaxDepth || qValue <= 3 {
+
+		if value, exists := SeenPositions[position.Hash()]; exists {
 			return value
 		} else {
-			value := evalBoard(game.Position())
-			SeenPositions[game.FEN()] = value
+
+			value := evalBoard(position)
+			SeenPositions[position.Hash()] = value
 			return value
 		}
+
 	}
+
+	potentials := game.ValidMoves()
 
 	if maximizingPlayer {
 		best := float32(MinEval)
-		for _, move := range position.ValidMoves() {
+		for _, move := range potentials {
 			next := game.Clone()
+			value := float32(0)
+			if position.Board().Piece(move.S2()).String() != nil {
+				value = minMax(depth, alpha, beta, next, false, qValue+1)
+			}
 
 			if err := next.Move(move); err != nil {
 				panic(err)
 			}
 
-			value := minMax(depth+1, alpha, beta, next, false)
+			value = minMax(depth+1, alpha, beta, next, false, 0)
 			best = max(value, best)
 			alpha = max(alpha, best)
 
@@ -196,12 +119,13 @@ func minMax(depth int, alpha float32, beta float32, game *chess.Game, maximizing
 		best := float32(MaxEval)
 		for _, move := range position.ValidMoves() {
 			next := game.Clone()
+			value := float32(0)
 
 			if err := next.Move(move); err != nil {
 				panic(err)
 			}
 
-			value := minMax(depth+1, alpha, beta, next, true)
+			value = minMax(depth+1, alpha, beta, next, true, 0)
 			best = min(value, best)
 			beta = min(beta, best)
 
@@ -212,18 +136,4 @@ func minMax(depth int, alpha float32, beta float32, game *chess.Game, maximizing
 		return best
 	}
 
-}
-
-func max(a, b float32) float32 {
-	if a < b {
-		return b
-	}
-	return a
-}
-
-func min(a, b float32) float32 {
-	if a > b {
-		return b
-	}
-	return a
 }
